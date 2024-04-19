@@ -1,3 +1,4 @@
+```
 # mesh-cross-domain
 #setup E2M on first project
 
@@ -554,7 +555,7 @@ TODO: fix this - for now I did a kubectl edit
 kubectl --context=${CLUSTER_1_NAME} patch configmap/istio-asm-managed-rapid -n istio-system --type merge -p '{"data":{"mesh":{"trustDomainAliases":"[\"chilm-mesh-xdom-b.svc.id.goog\"]"}}}'
 kubectl --context=${CLUSTER_2_NAME} patch configmap/istio-asm-managed-rapid -n istio-system --type merge -p '{"data":{"mesh":{"trustDomainAliases":"[\"chilm-mesh-xdom-a.svc.id.goog\"]"}}}'
 
-
+```
 
 
 
