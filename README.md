@@ -301,17 +301,68 @@ EOF
 
 gcloud endpoints services deploy ${WORKDIR}/dns-spec.yaml
 
+mkdir -p ${WORKDIR}/asm-ig/base
+cat <<EOF > ${WORKDIR}/asm-ig/base/kustomization.yaml
+resources:
+  - github.com/GoogleCloudPlatform/anthos-service-mesh-samples/docs/ingress-gateway-asm-manifests/base
+EOF
+
+
+mkdir ${WORKDIR}/asm-ig/variant
+
+cat <<EOF > ${WORKDIR}/asm-ig/variant/service-proto-type.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: asm-ingressgateway
+spec:
+  type: LoadBalancer
+  loadBalancerIP: ${GCNLB_IP}
+EOF
+
+cat <<EOF > ${WORKDIR}/asm-ig/variant/gateway.yaml
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: asm-ingressgateway
+spec:
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "*" # IMPORTANT: Must use wildcard here when using SSL, see note below
+    tls:
+      mode: ISTIO_MUTUAL
+EOF
+
+cat <<EOF > ${WORKDIR}/asm-ig/variant/kustomization.yaml
+namespace: asm-ingress-int
+resources:
+- ../base
+patches:
+- path: service-proto-type.yaml
+  target:
+    kind: Service
+- path: gateway.yaml
+  target:
+    kind: Gateway
+EOF
+
+kubectl --context=${CLUSTER_2_NAME} apply -k ${WORKDIR}/asm-ig/variant
+
 # Helm is the state-of-the-art when deploying Istio/ASM gateways
-helm repo add istio https://istio-release.storage.googleapis.com/charts
-helm repo update
+# helm repo add istio https://istio-release.storage.googleapis.com/charts
+# helm repo update
 
 # Deploy a gateway to the target cluster
 # Make sure it creates a Service of type LoadBalancer
 # * It's an NLB
 # * It uses the IP we reserved
-helm install "asm-ingressgateway" istio/gateway -n "asm-ingress-int" \
-    --set revision="asm-managed-rapid" \
-    --set service.loadBalancerIP=${GCNLB_IP}
+# helm install "asm-ingressgateway" istio/gateway -n "asm-ingress-int" \
+#    --set revision="asm-managed-rapid" \
+#    --set service.loadBalancerIP=${GCNLB_IP}
 
 kubectl --context=${CLUSTER_1_NAME} create ns frontend
 kubectl --context=${CLUSTER_1_NAME} label namespace frontend istio-injection=enabled
@@ -430,7 +481,7 @@ EOF
 
 kubectl --context=${CLUSTER_1_NAME} apply -f ${WORKDIR}/frontend-vs.yaml
 
-kubectl --context=${CLUSTER_2_NAME} apply -f - <<EOF
+<!-- kubectl --context=${CLUSTER_2_NAME} apply -f - <<EOF
     apiVersion: networking.istio.io/v1alpha3
     kind: Gateway
     metadata:
@@ -448,26 +499,7 @@ kubectl --context=${CLUSTER_2_NAME} apply -f - <<EOF
         - "*"
         tls:
           mode: ISTIO_MUTUAL
-EOF
-
-#kubectl --context=${CLUSTER_2_NAME} apply -f - <<EOF
-##    apiVersion: networking.istio.io/v1beta1
-#    kind: VirtualService
-#    metadata:
-##      name: whereami-vs
-#      namespace: backend
-#    spec:
-#      gateways:
-#      - asm-ingress-int/asm-ingressgateway
-#      hosts:
-#      - 'ig.endpoints.${PROJECT}.cloud.goog'
-#      http:
-#      - route:
-#        - destination:
-#            host: whereami-backend
-#            port:
-#              number: 80
-#EOF
+EOF -->
 
 kubectl apply --context=${CLUSTER_2_NAME} -f - <<EOF
     apiVersion: networking.istio.io/v1alpha3
@@ -551,10 +583,25 @@ kubectl apply --context=${CLUSTER_2_NAME} -f - <<EOF
           values: ["spiffe://chilm-mesh-xdom-a.svc.id.goog/ns/frontend/sa/whereami-frontend"]
 EOF
 
-TODO: fix this - for now I did a kubectl edit
-kubectl --context=${CLUSTER_1_NAME} patch configmap/istio-asm-managed-rapid -n istio-system --type merge -p '{"data":{"mesh":{"trustDomainAliases":"[\"chilm-mesh-xdom-b.svc.id.goog\"]"}}}'
-kubectl --context=${CLUSTER_2_NAME} patch configmap/istio-asm-managed-rapid -n istio-system --type merge -p '{"data":{"mesh":{"trustDomainAliases":"[\"chilm-mesh-xdom-a.svc.id.goog\"]"}}}'
+kubectl apply --context=${CLUSTER_1_NAME} --namespace istio-system -f - <<EOF
+    apiVersion: "security.istio.io/v1beta1"
+    kind: "PeerAuthentication"
+    metadata:
+      name: "default"
+    spec:
+      mtls:
+        mode: STRICT
+EOF
 
+kubectl apply --context=${CLUSTER_2_NAME} --namespace istio-system -f - <<EOF
+    apiVersion: "security.istio.io/v1beta1"
+    kind: "PeerAuthentication"
+    metadata:
+      name: "default"
+    spec:
+      mtls:
+        mode: STRICT
+EOF
 ```
 
 
