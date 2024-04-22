@@ -583,7 +583,7 @@ EOF
 
 #Note: this policy references the header we set on the target IG
 
-kubectl apply --context=${CLUSTER_2_NAME} -f - <<EOF
+kubectl apply --context=${CONTEXT_2} -f - <<EOF
     apiVersion: security.istio.io/v1beta1
     kind: AuthorizationPolicy
     metadata:
@@ -600,7 +600,7 @@ kubectl apply --context=${CLUSTER_2_NAME} -f - <<EOF
           values: ["spiffe://chilm-mesh-xdom-a.svc.id.goog/ns/frontend/sa/whereami-frontend"]
 EOF
 
-kubectl apply --context=${CLUSTER_1_NAME} --namespace istio-system -f - <<EOF
+kubectl apply --context=${CONTEXT_1} --namespace istio-system -f - <<EOF
     apiVersion: "security.istio.io/v1beta1"
     kind: "PeerAuthentication"
     metadata:
@@ -610,7 +610,7 @@ kubectl apply --context=${CLUSTER_1_NAME} --namespace istio-system -f - <<EOF
         mode: STRICT
 EOF
 
-kubectl apply --context=${CLUSTER_2_NAME} --namespace istio-system -f - <<EOF
+kubectl apply --context=${CONTEXT_2} --namespace istio-system -f - <<EOF
     apiVersion: "security.istio.io/v1beta1"
     kind: "PeerAuthentication"
     metadata:
