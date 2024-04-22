@@ -1,32 +1,45 @@
-```
-# mesh-cross-domain
-#setup E2M on first project
 
-export PROJECT=chilm-mesh-xdom-a
-export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT} --format="value(projectNumber)")
-gcloud config set project ${PROJECT}
-mkdir -p ${HOME}/edge-to-mesh
-cd ${HOME}/edge-to-mesh
+# mesh-cross-domain
+### setup Edge to Mesh on first project
+
+Expose Mesh Ingress Gateway as external L7 managed Gateway
+```
+export PROJECT_1=chilm-mesh-xdom-a
+export PROJECT_1_NUMBER=$(gcloud projects describe ${PROJECT_1} --format="value(projectNumber)")
+gcloud config set project ${PROJECT_1}
+mkdir -p ${HOME}/edge-to-mesh-a
+cd ${HOME}/edge-to-mesh-a
 export WORKDIR=`pwd`
+
 touch edge2mesh_kubeconfig
 export KUBECONFIG=${WORKDIR}/edge2mesh_kubeconfig
-export CLUSTER_NAME=source-mesh
+
 export CLUSTER_1_NAME=source-mesh
-export CLUSTER_LOCATION=us-east4
+export CLUSTER_1_LOCATION=us-east4
 gcloud services enable container.googleapis.com
-gcloud container --project ${PROJECT} clusters create-auto \
-   ${CLUSTER_NAME} --region ${CLUSTER_LOCATION} --release-channel rapid
+```
+Create a GKE Autopilot cluster:
+
+**Note:** Assumes a VPC named `default` exists
+```
+gcloud container --project ${PROJECT_1} clusters create-auto \
+   ${CLUSTER_1_NAME} --region ${CLUSTER_1_LOCATION} --release-channel rapid
+
+export CONTEXT_1=$(kubectl config current-context) 
+
 gcloud services enable mesh.googleapis.com
 gcloud container fleet mesh enable
-gcloud container fleet memberships register ${CLUSTER_NAME} \
-  --gke-cluster ${CLUSTER_LOCATION}/${CLUSTER_NAME}
-gcloud container clusters update ${CLUSTER_NAME} --project ${PROJECT} --region ${CLUSTER_LOCATION} --update-labels mesh_id=proj-${PROJECT_NUMBER}
+gcloud container fleet memberships register ${CLUSTER_1_NAME} \
+  --gke-cluster ${CLUSTER_1_LOCATION}/${CLUSTER_1_NAME}
+gcloud container clusters update ${CLUSTER_1_NAME} --project ${PROJECT_1} --region ${CLUSTER_1_LOCATION} --update-labels mesh_id=proj-${PROJECT_1_NUMBER}
 gcloud container fleet mesh update \
   --management automatic \
-  --memberships ${CLUSTER_NAME}
+  --memberships ${CLUSTER_1_NAME}
 kubectl create namespace asm-ingress-ext
 kubectl label namespace asm-ingress-ext istio-injection=enabled
-
+```
+We'll create a self-signed cert to encrypt traffic between the LB and the backends
+```
 openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 \
  -subj "/CN=frontend.endpoints.${PROJECT}.cloud.goog/O=Edge2Mesh Inc" \
  -keyout frontend.endpoints.${PROJECT}.cloud.goog.key \
@@ -35,7 +48,10 @@ openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 \
 kubectl -n asm-ingress-ext create secret tls edge2mesh-credential \
  --key=frontend.endpoints.${PROJECT}.cloud.goog.key \
  --cert=frontend.endpoints.${PROJECT}.cloud.goog.crt
-
+```
+Now we ready a deployment of Mesh Ingress Gateway
+**Note:** check mesh is provisioned via `gcloud container fleet mesh describe`
+```
 mkdir -p ${WORKDIR}/asm-ig/base
 cat <<EOF > ${WORKDIR}/asm-ig/base/kustomization.yaml
 resources:
@@ -124,7 +140,10 @@ patches:
     kind: Gateway
 EOF
 
-kubectl apply -k ${WORKDIR}/asm-ig/variant
+```
+apply it to our cluster
+```
+kubectl --context=${CONTEXT_1} apply -k ${WORKDIR}/asm-ig/variant
 
 cat <<EOF >${WORKDIR}/ingress-gateway-healthcheck.yaml
 apiVersion: networking.gke.io/v1
@@ -158,13 +177,14 @@ spec:
     name: asm-ingressgateway
 EOF
 
-kubectl apply -f ${WORKDIR}/ingress-gateway-healthcheck.yaml
+kubectl --context=${CONTEXT_1} apply -f ${WORKDIR}/ingress-gateway-healthcheck.yaml
 
 gcloud compute addresses create e2m-gclb-ip --global
 export GCLB_IP=$(gcloud compute addresses describe e2m-gclb-ip \
   --global --format "value(address)")
 echo ${GCLB_IP}
 
+#This creates a DNS entry
 cat <<EOF > ${WORKDIR}/dns-spec.yaml
 swagger: "2.0"
 info:
@@ -210,7 +230,7 @@ spec:
     value: e2m-gclb-ip # reference the static IP created earlier
 EOF
 
-kubectl apply -f ${WORKDIR}/gke-gateway.yaml
+kubectl --context=${CONTEXT_1} apply -f ${WORKDIR}/gke-gateway.yaml
 
 cat << EOF > ${WORKDIR}/default-httproute.yaml
 apiVersion: gateway.networking.k8s.io/v1beta1
@@ -232,7 +252,7 @@ spec:
       port: 443
 EOF
 
-kubectl apply -f ${WORKDIR}/default-httproute.yaml
+kubectl --context=${CONTEXT_1} apply -f ${WORKDIR}/default-httproute.yaml
 
 cat << EOF > ${WORKDIR}/default-httproute-redirect.yaml
 kind: HTTPRoute
@@ -253,39 +273,53 @@ spec:
         statusCode: 301
 EOF
 
-kubectl apply -f ${WORKDIR}/default-httproute-redirect.yaml
+kubectl --context=${CONTEXT_1} apply -f ${WORKDIR}/default-httproute-redirect.yaml
+```
+### Create second cluster (target for remote service call)
 
-## second cluster (target for xdom service)
+We put this in a different project with no connectivity to the first
 
-export PROJECT=chilm-mesh-xdom-b
-export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT} --format="value(projectNumber)")
-gcloud config set project ${PROJECT}
+```
+export PROJECT_2=chilm-mesh-xdom-b
+export PROJECT_2_NUMBER=$(gcloud projects describe ${PROJECT_2} --format="value(projectNumber)")
+gcloud config set project ${PROJECT_2}
 
 mkdir -p ${HOME}/edge-to-mesh-target
 cd ${HOME}/edge-to-mesh-target
 export WORKDIR=`pwd`
 
 export CLUSTER_2_NAME=target-mesh
-export CLUSTER_LOCATION=us-central1
+export CLUSTER_2_LOCATION=us-central1
 gcloud services enable container.googleapis.com
-gcloud container --project ${PROJECT} clusters create-auto \
-   ${CLUSTER_2_NAME} --region ${CLUSTER_LOCATION} --release-channel rapid
+gcloud container --project ${PROJECT_2} clusters create-auto \
+   ${CLUSTER_2_NAME} --region ${CLUSTER__2_LOCATION} --release-channel rapid
+
+export CONTEXT_2=$(kubectl config current-context)
+
 gcloud services enable mesh.googleapis.com
 gcloud container fleet mesh enable
 gcloud container fleet memberships register ${CLUSTER_2_NAME} \
-  --gke-cluster ${CLUSTER_LOCATION}/${CLUSTER_2_NAME}
-gcloud container clusters update ${CLUSTER_2_NAME} --project ${PROJECT} --region ${CLUSTER_LOCATION} --update-labels mesh_id=proj-${PROJECT_NUMBER}
+  --gke-cluster ${CLUSTER_2_LOCATION}/${CLUSTER_2_NAME}
+gcloud container clusters update ${CLUSTER_2_NAME} --project ${PROJECT_2} --region ${CLUSTER_2_LOCATION} --update-labels mesh_id=proj-${PROJECT_2_NUMBER}
 gcloud container fleet mesh update \
   --management automatic \
   --memberships ${CLUSTER_2_NAME}
 kubectl create namespace asm-ingress-int
 kubectl label namespace asm-ingress-int istio-injection=enabled
 
+```
+For the sake of similicity we'll expose the "internal" mesh Ingress Gateway exernally via a L4 NLB
+L7 can't be used since we want to enforce mTLS between meshes, so mTLS from source service will
+be terminated at the target mesh ingress gateway
+```
 gcloud compute addresses create ing-gclb-ip --region {CLUSTER_LOCATION}
 export GCNLB_IP=$(gcloud compute addresses describe ing-gclb-ip \
   --global --format "value(address)")
 echo ${GCNLB_IP}
-
+```
+We create a DNS entry, but if L4 ILB is created and exposed via PSC an internal zone Cloud DNS entry would
+be created for the "consumer" PSC IP address
+```
 cat <<EOF > ${WORKDIR}/dns-spec.yaml
 swagger: "2.0"
 info:
@@ -300,13 +334,17 @@ x-google-endpoints:
 EOF
 
 gcloud endpoints services deploy ${WORKDIR}/dns-spec.yaml
-
+```
+Now let's ready the target mesh ingress gateway deployment.
+Note - the Kustomize for the service object can be updated to create an "Internal" L4 NLB
+and add annotation for "global access" as needed to meet requirements for exposing
+a PSC endpoint
+```
 mkdir -p ${WORKDIR}/asm-ig/base
 cat <<EOF > ${WORKDIR}/asm-ig/base/kustomization.yaml
 resources:
   - github.com/GoogleCloudPlatform/anthos-service-mesh-samples/docs/ingress-gateway-asm-manifests/base
 EOF
-
 
 mkdir ${WORKDIR}/asm-ig/variant
 
@@ -350,24 +388,16 @@ patches:
     kind: Gateway
 EOF
 
-kubectl --context=${CLUSTER_2_NAME} apply -k ${WORKDIR}/asm-ig/variant
+kubectl --context=${CONTEXT_2} apply -k ${WORKDIR}/asm-ig/variant
+```
+Now we'll deploy a `wherami` frontend in the source cluster that willl call
+`whereami` backend in the target cluster
+```
+kubectl --context=${CONTEXT_1} create ns frontend
+kubectl --context=${CONTEXT_1} label namespace frontend istio-injection=enabled
+kubectl --context=${CONTEXT_2} create ns backend
+kubectl --context=${CONTEXT_2} label namespace backend istio-injection=enabled
 
-# Helm is the state-of-the-art when deploying Istio/ASM gateways
-# helm repo add istio https://istio-release.storage.googleapis.com/charts
-# helm repo update
-
-# Deploy a gateway to the target cluster
-# Make sure it creates a Service of type LoadBalancer
-# * It's an NLB
-# * It uses the IP we reserved
-# helm install "asm-ingressgateway" istio/gateway -n "asm-ingress-int" \
-#    --set revision="asm-managed-rapid" \
-#    --set service.loadBalancerIP=${GCNLB_IP}
-
-kubectl --context=${CLUSTER_1_NAME} create ns frontend
-kubectl --context=${CLUSTER_1_NAME} label namespace frontend istio-injection=enabled
-kubectl --context=${CLUSTER_2_NAME} create ns backend
-kubectl --context=${CLUSTER_2_NAME} label namespace backend istio-injection=enabled
 mkdir -p ${WORKDIR}/whereami-backend/base
 
 cat <<EOF > ${WORKDIR}/whereami-backend/base/kustomization.yaml 
@@ -412,7 +442,7 @@ patches:
     kind: Service
 EOF
 
-kubectl --context=${CLUSTER_2_NAME} apply -k ${WORKDIR}/whereami-backend/variant
+kubectl --context=${CONTEXT_2} apply -k ${WORKDIR}/whereami-backend/variant
 
 mkdir -p ${WORKDIR}/whereami-frontend/base
 
@@ -430,7 +460,7 @@ metadata:
   name: whereami
 data:
   BACKEND_ENABLED: "True"
-  BACKEND_SERVICE:        "http://ig.endpoints.${PROJECT}.cloud.goog/"
+  BACKEND_SERVICE: "http://ig.endpoints.${PROJECT_2}.cloud.goog/"
 EOF
 
 cat <<EOF > ${WORKDIR}/whereami-frontend/variant/service-type.yaml 
@@ -458,7 +488,7 @@ patches:
     kind: Service
 EOF
 
-kubectl --context=${CLUSTER_1_NAME} apply -k ${WORKDIR}/whereami-frontend/variant
+kubectl --context=${CONTEXT_1} apply -k ${WORKDIR}/whereami-frontend/variant
 
 cat << EOF > ${WORKDIR}/frontend-vs.yaml
 apiVersion: networking.istio.io/v1beta1
@@ -470,7 +500,7 @@ spec:
   gateways:
   - asm-ingress-ext/asm-ingressgateway
   hosts:
-  - 'frontend.endpoints.${SOURCE_PROJECT}.cloud.goog'
+  - 'frontend.endpoints.${PROJECT_1}.cloud.goog'
   http:
   - route:
     - destination:
@@ -479,29 +509,17 @@ spec:
           number: 80
 EOF
 
-kubectl --context=${CLUSTER_1_NAME} apply -f ${WORKDIR}/frontend-vs.yaml
+kubectl --context=${CONTEXT_1} apply -f ${WORKDIR}/frontend-vs.yaml
+```
+**Note** we could expose multiple services by creating VS per target service.
 
-<!-- kubectl --context=${CLUSTER_2_NAME} apply -f - <<EOF
-    apiVersion: networking.istio.io/v1alpha3
-    kind: Gateway
-    metadata:
-      name: asm-ingressgateway
-      namespace: asm-ingress-int
-    spec:
-      selector:
-        istio: asm-ingressgateway
-      servers:
-      - port:
-          number: 443
-          name: https
-          protocol: HTTPS
-        hosts:
-        - "*"
-        tls:
-          mode: ISTIO_MUTUAL
-EOF -->
+This one just points to "/" path
 
-kubectl apply --context=${CLUSTER_2_NAME} -f - <<EOF
+**Note** There are 2 mTLS "hops". On the first hop we grab the identity and put it into
+a new header (always replacing any existing value) so we may use it on an `AuthorizationPolicy`
+in the second mTLS "hop" (from target IG to target service).
+```
+kubectl apply --context=${CONTEXT_2} -f - <<EOF
     apiVersion: networking.istio.io/v1alpha3
     kind: VirtualService
     metadata:
@@ -527,20 +545,16 @@ kubectl apply --context=${CLUSTER_2_NAME} -f - <<EOF
               san-uri-seen-at-gateway: "%DOWNSTREAM_PEER_URI_SAN%"
 EOF
 
-kubectl apply --context=${CLUSTER_1_NAME} -f - <<EOF
+#ServiceEntry pointing to the DNS entry for the target IG
+kubectl apply --context=${CONTEXT_1} -f - <<EOF
     apiVersion: networking.istio.io/v1beta1
     kind: ServiceEntry
     metadata:
       name: backend-remote
       namespace: frontend
     spec:
-      #addresses:
-      #  - 240.240.1.2 # Fake address
-      #endpoints:
-      #  - address: ${ILB_IP_1}
-      #  - address: ${ILB_IP_2}
       hosts:
-        - ig.endpoints.chilm-mesh-xdom-b.cloud.goog
+        - ig.endpoints.${PROJECT_2}.cloud.goog
       location: MESH_EXTERNAL
       ports:
         - name: http-80
@@ -553,18 +567,21 @@ kubectl apply --context=${CLUSTER_1_NAME} -f - <<EOF
       resolution: DNS
 EOF
 
-kubectl apply --context=${CLUSTER_1_NAME} -f - <<EOF
+#Enforce mTLS for calls to the ServiceEntry
+kubectl apply --context=${CONTEXT_1} -f - <<EOF
     apiVersion: networking.istio.io/v1beta1
     kind: DestinationRule
     metadata:
       name: backend-remote
       namespace: frontend
     spec:
-      host: ig.endpoints.chilm-mesh-xdom-b.cloud.goog
+      host: ig.endpoints.${PROJECT_2}.cloud.goog
       trafficPolicy:
         tls:
           mode: ISTIO_MUTUAL
 EOF
+
+#Note: this policy references the header we set on the target IG
 
 kubectl apply --context=${CLUSTER_2_NAME} -f - <<EOF
     apiVersion: security.istio.io/v1beta1
@@ -603,7 +620,6 @@ kubectl apply --context=${CLUSTER_2_NAME} --namespace istio-system -f - <<EOF
         mode: STRICT
 EOF
 ```
+Now we can curl the frontend service as observe a successful call to the backend
 
-
-
-
+`curl -s https://frontend.endpoints.${PROJECT_1}.cloud.goog`
