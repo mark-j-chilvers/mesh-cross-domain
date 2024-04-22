@@ -354,9 +354,21 @@ kind: Service
 metadata:
   name: asm-ingressgateway
 spec:
+  ports:
+  - name: status-port
+    port: 15021
+    protocol: TCP
+    targetPort: 15021
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 8443
+    protocol: TCP
   type: LoadBalancer
   loadBalancerIP: ${GCNLB_IP}
-EOF
 
 cat <<EOF > ${WORKDIR}/asm-ig/variant/gateway.yaml
 apiVersion: networking.istio.io/v1beta1
