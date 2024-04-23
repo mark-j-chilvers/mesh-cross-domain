@@ -601,7 +601,7 @@ kubectl apply --context=${CONTEXT_1} -f - <<EOF
           mode: ISTIO_MUTUAL
 EOF
 ```
-Now we auth AuthorizationPolicies to secure the Ingress Gateway as tightly as we would like.
+Now we create AuthorizationPolicies to secure the Ingress Gateway as tightly as we would like.
 We will start with "allow nothing" which will block ALL service calls within the target mesh unless a specific ALLOW AuthPol is created.
 ```
 kubectl apply --context=${CONTEXT_2} -f - <<EOF
@@ -614,9 +614,9 @@ kubectl apply --context=${CONTEXT_2} -f - <<EOF
       action: ALLOW
 EOF
 ```
-First we must create an ALLOW policy for the IG
+Next we must create an ALLOW policy for the IG
 
-In this example we'll allow any service from the source mesh to reach the IG.
+In this example we'll allow any service identity from the source mesh to reach the IG.
 
 However - this can be as specific as you desire (i.e. could be a list of namespaces - ns - or services - sa)
 ```
