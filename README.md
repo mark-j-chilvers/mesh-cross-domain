@@ -390,7 +390,7 @@ spec:
       name: https
       protocol: HTTPS
     hosts:
-    - "*" # IMPORTANT: Must use wildcard here when using SSL, see note below
+    - "*"
     tls:
       mode: ISTIO_MUTUAL
 EOF
