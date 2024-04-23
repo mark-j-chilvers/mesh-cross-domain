@@ -316,7 +316,8 @@ kubectl create namespace asm-ingress-int
 kubectl label namespace asm-ingress-int istio-injection=enabled
 
 ```
-For the sake of similicity we'll expose the "internal" mesh Ingress Gateway exernally via a L4 NLB
+For the sake of similicity we'll expose the "internal" mesh Ingress Gateway exernally via a L4 NLB.
+
 L7 can't be used since we want to enforce mTLS between meshes, so mTLS from source service will
 be terminated at the target mesh ingress gateway
 ```
