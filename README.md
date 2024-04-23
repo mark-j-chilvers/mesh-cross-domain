@@ -650,7 +650,9 @@ kubectl apply --context=${CONTEXT_2} -f - <<EOF
         - key: request.headers[San-Uri-Seen-At-Gateway]
           values: ["spiffe://${PROJECT_1}.svc.id.goog/ns/frontend/sa/whereami-frontend"]
 EOF
-
+```
+Set mTLS **strict** on both clusters / meshes
+```
 kubectl apply --context=${CONTEXT_1} --namespace istio-system -f - <<EOF
     apiVersion: "security.istio.io/v1beta1"
     kind: "PeerAuthentication"
