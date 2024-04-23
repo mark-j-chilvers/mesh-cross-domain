@@ -4,7 +4,7 @@
 
 Expose Mesh Ingress Gateway as external L7 managed Gateway
 ```
-export PROJECT_1=chilm-mesh-xdom-a
+export PROJECT_1=[your-source-project-id]
 export PROJECT_1_NUMBER=$(gcloud projects describe ${PROJECT_1} --format="value(projectNumber)")
 gcloud config set project ${PROJECT_1}
 mkdir -p ${HOME}/edge-to-mesh-a
@@ -280,7 +280,7 @@ kubectl --context=${CONTEXT_1} apply -f ${WORKDIR}/default-httproute-redirect.ya
 We put this in a different project with no connectivity to the first
 
 ```
-export PROJECT_2=chilm-mesh-xdom-b
+export PROJECT_2=[your-target-project-id]
 export PROJECT_2_NUMBER=$(gcloud projects describe ${PROJECT_2} --format="value(projectNumber)")
 gcloud config set project ${PROJECT_2}
 
@@ -610,7 +610,7 @@ kubectl apply --context=${CONTEXT_2} -f - <<EOF
             namespaces: ["asm-ingress-int"]
         when:
         - key: request.headers[San-Uri-Seen-At-Gateway]
-          values: ["spiffe://chilm-mesh-xdom-a.svc.id.goog/ns/frontend/sa/whereami-frontend"]
+          values: ["spiffe://${PROJECT_1}.svc.id.goog/ns/frontend/sa/whereami-frontend"]
 EOF
 
 kubectl apply --context=${CONTEXT_1} --namespace istio-system -f - <<EOF
