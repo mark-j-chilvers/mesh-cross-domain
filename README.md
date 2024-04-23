@@ -1,9 +1,9 @@
 
 # mesh-cross-domain
 
-These are example steps to test out exposing a target service that is deployed in another domain / fleet / service mesh.
+These are example steps to test out exposing a target service that is deployed in another domain (i.e. GKE fleet & service mesh).
 
-Note - we are using ASM here (have not tried with CSM).
+Note - we are using ASM here (untested with CSM).
 
 MeshCA is the default when enabling ASM via the GKE Fleet. When using MeshCA certs share a common root.
 
