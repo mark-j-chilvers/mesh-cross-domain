@@ -297,10 +297,10 @@ cd ${HOME}/edge-to-mesh-target
 export WORKDIR=`pwd`
 
 export CLUSTER_2_NAME=target-mesh
-export CLUSTER_2_LOCATION=us-central1
+export CLUSTER_2_LOCATION=us-east4
 gcloud services enable container.googleapis.com
 gcloud container --project ${PROJECT_2} clusters create-auto \
-   ${CLUSTER_2_NAME} --region ${CLUSTER__2_LOCATION} --release-channel rapid
+   ${CLUSTER_2_NAME} --region ${CLUSTER_2_LOCATION} --release-channel rapid
 
 export CONTEXT_2=$(kubectl config current-context)
 
