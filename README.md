@@ -346,8 +346,7 @@ gcloud endpoints services deploy ${WORKDIR}/dns-spec.yaml
 ```
 Now let's ready the target mesh ingress gateway deployment.
 Note - the Kustomize for the service object can be updated to create an "Internal" L4 NLB
-and add annotation for "global access" as needed to meet requirements for exposing
-a PSC endpoint
+as needed to meet requirements for exposing a PSC backend
 ```
 mkdir -p ${WORKDIR}/asm-ig/base
 cat <<EOF > ${WORKDIR}/asm-ig/base/kustomization.yaml
@@ -378,6 +377,7 @@ spec:
     protocol: TCP
   type: LoadBalancer
   loadBalancerIP: ${GCNLB_IP}
+EOF
 
 cat <<EOF > ${WORKDIR}/asm-ig/variant/gateway.yaml
 apiVersion: networking.istio.io/v1beta1
