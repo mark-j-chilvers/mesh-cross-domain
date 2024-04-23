@@ -593,7 +593,8 @@ kubectl apply --context=${CONTEXT_1} -f - <<EOF
           mode: ISTIO_MUTUAL
 EOF
 
-#Note: this policy references the header we set on the target IG
+#Note: this policy references the header we set on the target IG. Typically this would be
+combined with a **default** ALLOW none AuthPol for the target cluster
 
 kubectl apply --context=${CONTEXT_2} -f - <<EOF
     apiVersion: security.istio.io/v1beta1
