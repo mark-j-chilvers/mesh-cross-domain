@@ -593,8 +593,46 @@ kubectl apply --context=${CONTEXT_1} -f - <<EOF
           mode: ISTIO_MUTUAL
 EOF
 ```
-**Note:** this policy references the header we set on the target IG. Typically this would be
-combined with a **default** ALLOW none AuthPol for the target cluster
+Now we auth AuthorizationPolicies to secure the Ingress Gateway as tightly as we would like.
+We will start with "allow nothing" which will block ALL service calls within the target mesh unless a specific ALLOW AuthPol is created.
+```
+kubectl apply --context=${CONTEXT_2} -f - <<EOF
+    apiVersion: security.istio.io/v1beta1
+    kind: AuthorizationPolicy
+    metadata:
+      name: default-allow-nothing
+      namespace: istio-system
+    spec:
+      action: ALLOW
+EOF
+```
+First we must create an ALLOW policy for the IG
+
+In this example we'll allow any service from the source mesh to reach the IG.
+
+However - this can be as specific as you desire (i.e. could be a list of namespaces - ns - or services - sa)
+```
+kubectl apply --context=${CONTEXT_2} -f - <<EOF
+    apiVersion: security.istio.io/v1beta1
+    kind: AuthorizationPolicy
+    metadata:
+      name: ap-asm-ingressgateway
+      namespace: asm-ingress-int
+    spec:
+      selector:
+        matchLabels:
+          asm: ingressgateway
+      action: ALLOW
+      rules:
+      - from:
+        - source:
+            principals: ["${PROJECT_1}.svc.id.goog/*"]
+EOF
+```
+Now we create our AuthPol for the target service itself
+
+**Note:** this policy references the header we set on the target IG
+(since the principal is now the service account for the target Ingress Gateway)
 ```
 kubectl apply --context=${CONTEXT_2} -f - <<EOF
     apiVersion: security.istio.io/v1beta1
