@@ -1,5 +1,13 @@
 
 # mesh-cross-domain
+
+These are example steps to test out exposing a target service that is deployed in another domain / fleet / service mesh.
+
+Note - we are using ASM here (have not tried with CSM).
+
+MeshCA is the default when enabling ASM via the GKE Fleet. When using MeshCA certs share a common root.
+
+
 ### setup Edge to Mesh on first project
 
 Expose Mesh Ingress Gateway as external L7 managed Gateway
