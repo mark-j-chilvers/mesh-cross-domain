@@ -435,7 +435,7 @@ gcloud dns record-sets transaction start \
    --zone=test-private-zone
 
 gcloud dns record-sets transaction add ${PSC_CON_IP} \
-   --name=ig.${PROJECT_2}.mycompany.private \
+   --name=*.${PROJECT_2}.mycompany.private \
    --ttl=300 \
    --type=A \
    --zone=MANAGED_ZONE
@@ -513,7 +513,7 @@ metadata:
   name: whereami
 data:
   BACKEND_ENABLED: "True"
-  BACKEND_SERVICE: "http://ig.${PROJECT_2}.mycompany.private/"
+  BACKEND_SERVICE: "http://backend.${PROJECT_2}.mycompany.private/"
 EOF
 
 cat <<EOF > ${WORKDIR}/whereami-frontend/variant/service-type.yaml 
@@ -566,7 +566,7 @@ kubectl --context=${CONTEXT_1} apply -f ${WORKDIR}/frontend-vs.yaml
 ```
 **Note** we could expose multiple services by creating VS per target service.
 
-This one just points to "/" path
+This one is for "backend"
 
 **Note** There are 2 mTLS "hops". On the first hop we grab the identity and put it into
 a new header (always replacing any existing value) so we may use it on an `AuthorizationPolicy`
@@ -580,14 +580,11 @@ kubectl apply --context=${CONTEXT_2} -f - <<EOF
       namespace: backend
     spec:
       hosts:
-      - "*"
+      - "backend.${PROJECT_2}.mycompany.private"
       gateways:
       - asm-ingress-int/asm-ingressgateway
       http:
-      - match:
-        - uri:
-            exact: /
-        route:
+      - route:
         - destination:
             host: whereami-backend
             port:
@@ -607,7 +604,7 @@ kubectl apply --context=${CONTEXT_1} -f - <<EOF
       namespace: frontend
     spec:
       hosts:
-        - ig.${PROJECT_2}.mycompany.private
+        - backend.${PROJECT_2}.mycompany.private
       location: MESH_EXTERNAL
       ports:
         - name: http-80
@@ -628,7 +625,7 @@ kubectl apply --context=${CONTEXT_1} -f - <<EOF
       name: backend-remote
       namespace: frontend
     spec:
-      host: ig.${PROJECT_2}.mycompany.private
+      host: backend.${PROJECT_2}.mycompany.private
       trafficPolicy:
         tls:
           mode: ISTIO_MUTUAL
