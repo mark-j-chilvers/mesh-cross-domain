@@ -304,12 +304,12 @@ gcloud container --project ${PROJECT_2} clusters create-auto \
 
 export CONTEXT_2=$(kubectl config current-context)
 
-gcloud services enable mesh.googleapis.com
-gcloud container fleet mesh enable
+gcloud --project ${PROJECT_2} services enable mesh.googleapis.com
+gcloud --project ${PROJECT_2} container fleet mesh enable
 gcloud container fleet memberships register ${CLUSTER_2_NAME} \
-  --gke-cluster ${CLUSTER_2_LOCATION}/${CLUSTER_2_NAME}
+  --gke-cluster ${CLUSTER_2_LOCATION}/${CLUSTER_2_NAME} --project ${PROJECT_2}
 gcloud container clusters update ${CLUSTER_2_NAME} --project ${PROJECT_2} --region ${CLUSTER_2_LOCATION} --update-labels mesh_id=proj-${PROJECT_2_NUMBER}
-gcloud container fleet mesh update \
+gcloud --project ${PROJECT_2} container fleet mesh update \
   --management automatic \
   --memberships ${CLUSTER_2_NAME}
 kubectl create namespace asm-ingress-int
@@ -321,7 +321,7 @@ For the sake of similicity we'll expose the "internal" mesh Ingress Gateway exer
 L7 can't be used since we want to enforce mTLS between meshes, so mTLS from source service will
 be terminated at the target mesh ingress gateway
 ```
-gcloud compute addresses create ing-gclb-ip --region {CLUSTER_LOCATION}
+gcloud compute addresses create ing-gclb-ip --project ${PROJECT_2} --region ${CLUSTER_2_LOCATION}
 export GCNLB_IP=$(gcloud compute addresses describe ing-gclb-ip \
   --global --format "value(address)")
 echo ${GCNLB_IP}
@@ -342,7 +342,7 @@ x-google-endpoints:
   target: "${GCNLB_IP}"
 EOF
 
-gcloud endpoints services deploy ${WORKDIR}/dns-spec.yaml
+gcloud --project ${PROJECT_2} endpoints services deploy ${WORKDIR}/dns-spec.yaml
 ```
 Now let's ready the target mesh ingress gateway deployment.
 Note - the Kustomize for the service object can be updated to create an "Internal" L4 NLB
