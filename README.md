@@ -31,14 +31,13 @@ Create a GKE Autopilot cluster:
 **Note:** Assumes a VPC named `default` exists
 ```
 gcloud container --project ${PROJECT_1} clusters create-auto \
-   ${CLUSTER_1_NAME} --region ${CLUSTER_1_LOCATION} --release-channel rapid
+   ${CLUSTER_1_NAME} --region ${CLUSTER_1_LOCATION} --release-channel rapid --enable-fleet
 
 export CONTEXT_1=$(kubectl config current-context) 
 
 gcloud services enable mesh.googleapis.com
 gcloud container fleet mesh enable
-gcloud container fleet memberships register ${CLUSTER_1_NAME} \
-  --gke-cluster ${CLUSTER_1_LOCATION}/${CLUSTER_1_NAME}
+
 gcloud container clusters update ${CLUSTER_1_NAME} --project ${PROJECT_1} --region ${CLUSTER_1_LOCATION} --update-labels mesh_id=proj-${PROJECT_1_NUMBER}
 gcloud container fleet mesh update \
   --management automatic \
@@ -300,14 +299,13 @@ export CLUSTER_2_NAME=target-mesh
 export CLUSTER_2_LOCATION=us-east4
 gcloud services enable container.googleapis.com
 gcloud container --project ${PROJECT_2} clusters create-auto \
-   ${CLUSTER_2_NAME} --region ${CLUSTER_2_LOCATION} --release-channel rapid
+   ${CLUSTER_2_NAME} --region ${CLUSTER_2_LOCATION} --release-channel rapid --enable-fleet
 
 export CONTEXT_2=$(kubectl config current-context)
 
 gcloud --project ${PROJECT_2} services enable mesh.googleapis.com
 gcloud --project ${PROJECT_2} container fleet mesh enable
-gcloud container fleet memberships register ${CLUSTER_2_NAME} \
-  --gke-cluster ${CLUSTER_2_LOCATION}/${CLUSTER_2_NAME} --project ${PROJECT_2}
+
 gcloud container clusters update ${CLUSTER_2_NAME} --project ${PROJECT_2} --region ${CLUSTER_2_LOCATION} --update-labels mesh_id=proj-${PROJECT_2_NUMBER}
 gcloud --project ${PROJECT_2} container fleet mesh update \
   --management automatic \
