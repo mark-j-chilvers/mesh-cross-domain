@@ -438,10 +438,10 @@ gcloud dns record-sets transaction add ${PSC_CON_IP} \
    --name=*.${PROJECT_2}.mycompany.private \
    --ttl=300 \
    --type=A \
-   --zone=MANAGED_ZONE
+   --zone=test-private-zone
 
 gcloud dns record-sets transaction execute \
-   --zone=test.private.zone
+   --zone=test-private-zone
 ```
 Now we'll deploy a `wherami` frontend in the source cluster that willl call
 `whereami` backend in the target cluster
