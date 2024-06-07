@@ -345,7 +345,6 @@ kind: Service
 metadata:
   annotations:
     networking.gke.io/load-balancer-type: "Internal"
-    cloud.google.com/l4-rbs: "enabled" # recommended per docs
   name: asm-ingressgateway
 spec:
   ports:
