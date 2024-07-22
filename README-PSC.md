@@ -632,7 +632,11 @@ Attach the PSC producer to the consumer IP address.
 ```
 export SA_URL=$(kubectl get serviceattachment asm-ingressgateway-svcatt --context=${CONTEXT_2} -n asm-ingress-int -o "jsonpath={.status['serviceAttachmentURL']}")
 
+```
+Added --allow-psc-global-access to show that the PSC consumer can be accessed from any region
+```
 gcloud compute forwarding-rules create vpc-consumer-psc-fr --project=${PROJECT_1} \
+   --allow-psc-global-access 
    --region=${CLUSTER_1_LOCATION} --network=default \
    --address=vpc-consumer-psc --target-service-attachment=${SA_URL}
 
