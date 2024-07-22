@@ -415,7 +415,7 @@ EOF
 ```
 In the source cluster / project we'll reserve an internal IP for the consumer and create a Cloud DNS entry.
 
-**Note:** producer and consumer must be in same region in this example
+**Note:** producer and consumer endpoint must be in same region in this example
 ```
 gcloud compute addresses create vpc-consumer-psc --project=${PROJECT_1} --region=${CLUSTER_1_LOCATION} --subnet=default
 export PSC_CON_IP=$(gcloud compute addresses describe vpc-consumer-psc \
@@ -633,7 +633,7 @@ Attach the PSC producer to the consumer IP address.
 export SA_URL=$(kubectl get serviceattachment asm-ingressgateway-svcatt --context=${CONTEXT_2} -n asm-ingress-int -o "jsonpath={.status['serviceAttachmentURL']}")
 
 ```
-Added --allow-psc-global-access to show that the PSC consumer can be accessed from any region
+Note: Although PSC consumer & producer endpoints must be in same region, you can add [--allow-psc-global-access](https://cloud.google.com/vpc/docs/about-accessing-vpc-hosted-services-endpoints#global-access) so that consumer endpoint can be accessed from any region
 ```
 gcloud compute forwarding-rules create vpc-consumer-psc-fr --project=${PROJECT_1} \
    --allow-psc-global-access 
