@@ -9,6 +9,8 @@ MeshCA is the default when enabling ASM via the GKE Fleet. When using MeshCA cer
 
 In this variant we connect target to source via PSC attachment.
 
+![Architecture Diagram](Mesh%20cross-domain%20(PSC).png)
+
 
 ### setup Edge to Mesh on first project
 
